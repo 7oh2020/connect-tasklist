@@ -1,0 +1,8 @@
+CREATE TABLE tasks(
+  id VARCHAR(50) PRIMARY KEY,
+  user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL,
+  is_completed BOOLEAN NOT NULL DEFAULT(false),
+  created_at TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP NOT NULL
+);

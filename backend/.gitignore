@@ -1,0 +1,12 @@
+dist
+test
+tmp
+
+# generated files
+interfaces/rpc
+infrastructure/persistence/model/db
+
+# log files
+
+*.log
+*.txt

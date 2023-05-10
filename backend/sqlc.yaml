@@ -1,0 +1,13 @@
+version: 2
+sql:
+  - engine: "postgresql"
+    schema: "./data/schema"
+    queries: "./data/query"
+    gen:
+      go:
+        package: "db"
+        out: "./infrastructure/persistence/model/db"
+        sql_package: "pgx/v4"
+        emit_interface: true
+        emit_empty_slices: true
+        emit_pointers_for_null_types: true

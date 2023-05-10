@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package rpc.task.v1;
+
+// 日付型を外部のprotoファイルからimportする
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/task/v1;taskv1";
+
+service TaskService {
+  rpc GetTaskList(GetTaskListRequest) returns (GetTaskListResponse) {}
+  rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse) {}
+  rpc CompleteTask(CompleteTaskRequest) returns (CompleteTaskResponse) {}
+  rpc UncompleteTask(UncompleteTaskRequest) returns (UncompleteTaskResponse) {}
+  rpc ChangeTaskName(ChangeTaskNameRequest) returns (ChangeTaskNameResponse) {}
+  rpc DeleteTask(DeleteTaskRequest) returns (DeleteTaskResponse) {}
+}
+
+message Task {
+  string id = 1;
+  string user_id = 2;
+  string name = 3;
+  bool is_completed = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+message GetTaskListRequest {
+  //
+}
+
+message GetTaskListResponse {
+  repeated Task tasks = 1;
+}
+
+message CreateTaskRequest {
+  string name = 1;
+}
+
+message CreateTaskResponse {
+  string created_id = 1;
+}
+
+message CompleteTaskRequest {
+  string task_id = 1;
+}
+
+message CompleteTaskResponse {
+  //
+}
+
+message UncompleteTaskRequest {
+  string task_id = 1;
+}
+
+message UncompleteTaskResponse {
+  //
+}
+
+message ChangeTaskNameRequest {
+  string id = 1;
+  string name = 2;
+}
+
+message ChangeTaskNameResponse {
+  //
+}
+
+message DeleteTaskRequest {
+  string task_id = 1;
+}
+
+message DeleteTaskResponse {
+  //
+}

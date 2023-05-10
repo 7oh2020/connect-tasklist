@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package rpc.user.v1;
+
+option go_package = "github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/user/v1;userv1";
+
+service UserService {
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {}
+  rpc Login(LoginRequest) returns (LoginResponse) {}
+}
+
+message User {
+  string user_id = 1;
+  string email = 2;
+}
+
+message GetUserRequest {
+  string user_id = 1;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  User user = 1;
+  string token = 2;
+}

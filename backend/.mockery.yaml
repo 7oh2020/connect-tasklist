@@ -1,0 +1,9 @@
+# 全てのinterfaceをモック化してtest/mocksディレクトリに出力する
+all: true
+recursive: true
+exclude:
+  - infrastructure/persistence/model
+output: test/mocks
+with-expecter: true
+testonly: false
+keeptree: False
