@@ -1,10 +1,10 @@
 dist
-test
 tmp
 
 # generated files
 interfaces/rpc
 infrastructure/persistence/model/db
+test/mocks
 
 # log files
 
