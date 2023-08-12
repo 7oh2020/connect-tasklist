@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"github.com/7oh2020/connect-tasklist/backend/app/util/auth"
-	"github.com/7oh2020/connect-tasklist/backend/app/util/contextkey"
+	"github.com/7oh2020/connect-tasklist/backend/util/auth"
+	"github.com/7oh2020/connect-tasklist/backend/util/contextkey"
 )
 
 // リクエストのJWTを検証する。成功時にはUserIDをコンテキストにセットする

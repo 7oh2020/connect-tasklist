@@ -6,9 +6,9 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/7oh2020/connect-tasklist/backend/app/util/auth"
 	"github.com/7oh2020/connect-tasklist/backend/domain/object/entity"
 	"github.com/7oh2020/connect-tasklist/backend/domain/repository"
+	"github.com/7oh2020/connect-tasklist/backend/util/auth"
 	"golang.org/x/crypto/bcrypt"
 )
 

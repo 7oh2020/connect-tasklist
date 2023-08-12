@@ -5,10 +5,10 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/7oh2020/connect-tasklist/backend/app/usecase"
-	"github.com/7oh2020/connect-tasklist/backend/app/util/clock"
-	"github.com/7oh2020/connect-tasklist/backend/app/util/contextkey"
-	"github.com/7oh2020/connect-tasklist/backend/app/util/identification"
 	taskv1 "github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/task/v1"
+	"github.com/7oh2020/connect-tasklist/backend/util/clock"
+	"github.com/7oh2020/connect-tasklist/backend/util/contextkey"
+	"github.com/7oh2020/connect-tasklist/backend/util/identification"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

@@ -5,13 +5,13 @@ import (
 
 	"github.com/7oh2020/connect-tasklist/backend/app/handler"
 	"github.com/7oh2020/connect-tasklist/backend/app/usecase"
-	"github.com/7oh2020/connect-tasklist/backend/app/util/auth"
-	"github.com/7oh2020/connect-tasklist/backend/app/util/clock"
-	"github.com/7oh2020/connect-tasklist/backend/app/util/contextkey"
-	"github.com/7oh2020/connect-tasklist/backend/app/util/identification"
 	"github.com/7oh2020/connect-tasklist/backend/domain/service"
 	"github.com/7oh2020/connect-tasklist/backend/infrastructure/persistence/model/db"
 	"github.com/7oh2020/connect-tasklist/backend/infrastructure/persistence/sqlc"
+	"github.com/7oh2020/connect-tasklist/backend/util/auth"
+	"github.com/7oh2020/connect-tasklist/backend/util/clock"
+	"github.com/7oh2020/connect-tasklist/backend/util/contextkey"
+	"github.com/7oh2020/connect-tasklist/backend/util/identification"
 )
 
 func InitUser(issuer string, keyPath string, qry db.Querier, duration time.Duration) (*handler.UserHandler, error) {
