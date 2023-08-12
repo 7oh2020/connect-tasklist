@@ -3,9 +3,9 @@ package handler
 import (
 	"context"
 
+	"connectrpc.com/connect"
 	"github.com/7oh2020/connect-tasklist/backend/app/usecase"
 	userv1 "github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/user/v1"
-	"github.com/bufbuild/connect-go"
 )
 
 // UserServiceHandlerの実装

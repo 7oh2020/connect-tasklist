@@ -8,12 +8,12 @@ import (
 	"os"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/7oh2020/connect-tasklist/backend/infrastructure/persistence/model/db"
 	"github.com/7oh2020/connect-tasklist/backend/interfaces/di"
 	"github.com/7oh2020/connect-tasklist/backend/interfaces/interceptor"
 	"github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/task/v1/taskv1connect"
 	"github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/user/v1/userv1connect"
-	"github.com/bufbuild/connect-go"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/cors"
 	"golang.org/x/net/http2"

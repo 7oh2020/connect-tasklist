@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/7oh2020/connect-tasklist/backend/domain/object/entity"
 	taskv1 "github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/task/v1"
 	"github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/task/v1/taskv1connect"
 	"github.com/7oh2020/connect-tasklist/backend/test/mocks"
-	"github.com/bufbuild/connect-go"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

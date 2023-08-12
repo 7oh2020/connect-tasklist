@@ -3,7 +3,7 @@ module github.com/7oh2020/connect-tasklist/backend
 go 1.20
 
 require (
-	github.com/bufbuild/connect-go v1.6.0
+	connectrpc.com/connect v1.11.0
 	github.com/google/uuid v1.3.0
 	github.com/jackc/pgconn v1.14.0
 	github.com/jackc/pgx/v4 v4.18.1
@@ -12,7 +12,7 @@ require (
 	github.com/stretchr/testify v1.8.2
 	golang.org/x/crypto v0.7.0
 	golang.org/x/net v0.8.0
-	google.golang.org/protobuf v1.30.0
+	google.golang.org/protobuf v1.31.0
 )
 
 require (
