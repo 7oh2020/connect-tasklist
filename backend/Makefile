@@ -1,6 +1,10 @@
 MIGRATION_DIR="file://data/schema"
 
-all: depend db_refresh gen_rpc gen_orm gen_key run
+.Phony: all
+all: install run
+
+.Phony: install
+install: gen_key gen_orm gen_rpc gen_mock
 
 .Phony: gen_key
 gen_key:
@@ -53,15 +57,15 @@ gen_mock:
 
 .Phony: test
 test: depend
-	@go test $(REPO_NAME)/domain/object/entity
-	@go test $(REPO_NAME)/domain/service
-	@go test $(REPO_NAME)/app/usecase
-	@go test $(REPO_NAME)/app/util/auth
-	@go test $(REPO_NAME)/app/util/contextkey
-	@go test $(REPO_NAME)/app/handler
+	@go test ./domain/object/entity/...
+	@go test ./domain/service/...
+	@go test ./app/usecase/...
+	@go test ./app/util/auth/...
+	@go test ./app/util/contextkey/...
+	@go test ./app/handler/...
 	@echo "done unittest!!"
 
-.Phony: test_all
-test_all: depend gen_mock
+.Phony: all_test
+all_test: install
 	@go test -v ./...
 	@echo "done all tests!!"
