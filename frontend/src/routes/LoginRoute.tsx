@@ -8,7 +8,7 @@ import {
   Title,
 } from "@mantine/core";
 import { FC } from "react";
-import { LoginResponse } from "../gen/user/v1/user_pb";
+import { LoginResponse } from "../gen/auth/v1/auth_pb";
 import { useLoginUser } from "../hooks/UseLoginUser";
 
 type Props = {

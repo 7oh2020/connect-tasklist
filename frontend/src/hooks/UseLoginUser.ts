@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
-import { login } from "../gen/user/v1/user-UserService_connectquery";
-import { LoginResponse } from "../gen/user/v1/user_pb";
+import { login } from "../gen/auth/v1/auth-AuthService_connectquery";
+import { LoginResponse } from "../gen/auth/v1/auth_pb";
 import { useForm } from "@mantine/form";
 
 type FormValue = {
