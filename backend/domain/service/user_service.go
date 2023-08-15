@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
 
+	"github.com/7oh2020/connect-tasklist/backend/domain"
 	"github.com/7oh2020/connect-tasklist/backend/domain/object/entity"
+	"github.com/7oh2020/connect-tasklist/backend/domain/object/value"
 	"github.com/7oh2020/connect-tasklist/backend/domain/repository"
 )
 
@@ -22,8 +23,12 @@ func NewUserService(repo repository.IUserRepository) *UserService {
 }
 
 func (s *UserService) FindUserByID(ctx context.Context, id string) (*entity.User, error) {
-	if id == "" {
-		return nil, errors.New("error: invalid parameter")
+	if err := value.NewID(id).Validate(); err != nil {
+		return nil, err
 	}
-	return s.IUserRepository.FindUserByID(ctx, id)
+	user, err := s.IUserRepository.FindUserByID(ctx, id)
+	if err != nil {
+		return nil, &domain.ErrNotFound{Msg: "user not found"}
+	}
+	return user, nil
 }

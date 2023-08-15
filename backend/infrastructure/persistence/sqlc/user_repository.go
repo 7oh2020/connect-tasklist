@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/7oh2020/connect-tasklist/backend/domain/object/entity"
+	"github.com/7oh2020/connect-tasklist/backend/domain/object/value"
 	"github.com/7oh2020/connect-tasklist/backend/infrastructure/persistence/model/db"
 )
 
@@ -22,9 +23,9 @@ func (r *SQLCUserRepository) FindUserByID(ctx context.Context, id string) (*enti
 		return nil, err
 	}
 	return &entity.User{
-		ID:        res.ID,
-		Email:     res.Email,
-		Password:  res.Password,
+		ID:        value.NewID(res.ID),
+		Email:     value.NewEmail(res.Email),
+		Password:  value.NewPassword(res.Password),
 		CreatedAt: res.CreatedAt,
 		UpdatedAt: res.UpdatedAt,
 	}, nil
@@ -36,9 +37,9 @@ func (r *SQLCUserRepository) FindUserByEmail(ctx context.Context, email string) 
 		return nil, err
 	}
 	return &entity.User{
-		ID:        res.ID,
-		Email:     res.Email,
-		Password:  res.Password,
+		ID:        value.NewID(res.ID),
+		Email:     value.NewEmail(res.Email),
+		Password:  value.NewPassword(res.Password),
 		CreatedAt: res.CreatedAt,
 		UpdatedAt: res.UpdatedAt,
 	}, nil

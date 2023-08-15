@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package rpc.auth.v1;
+
+option go_package = "github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/auth/v1;auth_v1";
+
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse) {}
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string token = 2;
+}

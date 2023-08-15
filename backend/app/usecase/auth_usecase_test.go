@@ -2,11 +2,14 @@ package usecase
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
+	"github.com/7oh2020/connect-tasklist/backend/app"
+	"github.com/7oh2020/connect-tasklist/backend/domain"
 	"github.com/7oh2020/connect-tasklist/backend/domain/object/entity"
+	"github.com/7oh2020/connect-tasklist/backend/domain/object/value"
+	"github.com/7oh2020/connect-tasklist/backend/interfaces/dto"
 	"github.com/7oh2020/connect-tasklist/backend/test/mocks"
 	"github.com/stretchr/testify/require"
 )
@@ -18,56 +21,88 @@ func TestAuthUsecase_NewAuthUsecase(tt *testing.T) {
 }
 
 func TestAuthUsecase_Login(tt *testing.T) {
-	now := time.Now().UTC()
 	ctx := context.Background()
-	email := "admin@example.com"
+	timeout := time.Hour
+	id := "id"
+	email := "test@example.com"
 	pass := "pass"
-	duration := 1 * time.Hour
-	token := "token"
+	hPass := "$2a$10$YfHxWNfL8Ba2ltl6TRHMVuN0WPXxAuB5L7w1Y0jqaFcn2bUDoUq9W"
+	now := time.Now().UTC()
 	user := &entity.User{
-		ID:        "id",
-		Email:     email,
-		Password:  "$2a$10$YfHxWNfL8Ba2ltl6TRHMVuN0WPXxAuB5L7w1Y0jqaFcn2bUDoUq9W",
+		ID:        value.NewID(id),
+		Email:     value.NewEmail(email),
+		Password:  value.NewPassword(hPass),
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
+	token := "token"
 
-	repo := new(mocks.IUserRepository)
-	repo.On("FindUserByEmail", ctx, email).Return(user, nil)
+	tt.Run("正常系: 正しい入力の場合", func(t *testing.T) {
+		arg := dto.NewLoginParams(email, pass)
+		repo := new(mocks.IUserRepository)
+		repo.On("FindUserByEmail", ctx, email).Return(user, nil)
+		tm := new(mocks.ITokenManager)
+		tm.On("CreateToken", id, timeout).Return(token, nil)
+		uc := NewAuthUsecase(repo, tm, timeout)
+		ret, err := uc.Login(ctx, arg)
 
-	tm := new(mocks.ITokenManager)
-	tm.On("CreateToken", user.ID, duration).Return(token, nil)
+		require.NoError(t, err, "エラーが発生しないこと")
+		require.Equal(t, id, ret.ID())
+		require.Equal(t, email, ret.Email())
+		require.Equal(t, token, ret.Token())
+		repo.AssertExpectations(t)
+		tm.AssertExpectations(t)
+	})
+	tt.Run("準正常系: 不正な入力の場合", func(t *testing.T) {
+		errExp := &app.ErrInputValidationFailed{Msg: "invalid email"}
+		arg := dto.NewLoginParams("test", pass)
+		repo := new(mocks.IUserRepository)
+		tm := new(mocks.ITokenManager)
+		uc := NewAuthUsecase(repo, tm, timeout)
+		_, err := uc.Login(ctx, arg)
 
-	testcases := []struct {
-		title    string
-		email    string
-		pass     string
-		resToken string
-		resUser  *entity.User
-		err      error
-	}{
-		{title: "正常系: 正しい入力の場合", email: email, pass: pass, resToken: token, resUser: user, err: nil},
-		{title: "準正常系: emailが空の場合", email: "", pass: pass, resToken: token, resUser: nil, err: errors.New("error: invalid parameter")},
-		{title: "準正常系: passwordが空の場合", email: email, pass: "", resToken: token, resUser: nil, err: errors.New("error: invalid parameter")},
-		{title: "準正常系: emailのフォーマットが不正の場合", email: "email", pass: pass, resToken: token, resUser: nil, err: errors.New("error: invalid email")},
-		{title: "準正常系: パスワードが一致しない場合", email: email, pass: "another", resToken: token, resUser: nil, err: errors.New("error: password does not match")},
-	}
-	for _, tc := range testcases {
-		tt.Run(tc.title, func(t *testing.T) {
-			uc := NewAuthUsecase(repo, tm, duration)
-			tok, usr, err := uc.Login(ctx, tc.email, tc.pass)
-			require.Equal(t, tc.err, err)
+		require.EqualError(t, err, errExp.Error(), "エラーが一致すること")
+		repo.AssertExpectations(t)
+		tm.AssertExpectations(t)
+	})
+	tt.Run("準正常系: 存在しないEmailの場合", func(t *testing.T) {
+		errExp := &domain.ErrNotFound{Msg: "user not found"}
+		arg := dto.NewLoginParams("another@example.com", pass)
+		repo := new(mocks.IUserRepository)
+		repo.On("FindUserByEmail", ctx, arg.Email()).Return(nil, errExp)
+		tm := new(mocks.ITokenManager)
+		uc := NewAuthUsecase(repo, tm, timeout)
+		_, err := uc.Login(ctx, arg)
 
-			if err == nil {
-				repo.AssertExpectations(t)
-				require.Equal(t, tc.resToken, tok)
-				require.Equal(t, tc.resUser.ID, usr.ID)
-				require.Equal(t, tc.resUser.Email, usr.Email)
-				require.Equal(t, tc.resUser.Password, usr.Password)
-				require.Equal(t, tc.resUser.CreatedAt, usr.CreatedAt)
-				require.Equal(t, tc.resUser.UpdatedAt, usr.UpdatedAt)
-			}
-		})
-	}
+		require.EqualError(t, err, errExp.Error(), "エラーが一致すること")
+		repo.AssertExpectations(t)
+		tm.AssertExpectations(t)
+	})
+	tt.Run("準正常系: Passwordが一致しない場合", func(t *testing.T) {
+		errExp := &app.ErrLoginFailed{Msg: "password does not match"}
+		arg := dto.NewLoginParams(email, "another")
+		repo := new(mocks.IUserRepository)
+		repo.On("FindUserByEmail", ctx, email).Return(user, nil)
+		tm := new(mocks.ITokenManager)
+		uc := NewAuthUsecase(repo, tm, timeout)
+		_, err := uc.Login(ctx, arg)
 
+		require.EqualError(t, err, errExp.Error(), "エラーが一致すること")
+		repo.AssertExpectations(t)
+		tm.AssertExpectations(t)
+	})
+	tt.Run("準正常系: 内部エラーの場合", func(t *testing.T) {
+		errExp := &app.ErrInternal{Msg: "failed to create token"}
+		arg := dto.NewLoginParams(email, pass)
+		repo := new(mocks.IUserRepository)
+		repo.On("FindUserByEmail", ctx, email).Return(user, nil)
+		tm := new(mocks.ITokenManager)
+		tm.On("CreateToken", id, timeout).Return("", errExp)
+		uc := NewAuthUsecase(repo, tm, timeout)
+		_, err := uc.Login(ctx, arg)
+
+		require.EqualError(t, err, errExp.Error(), "エラーが一致すること")
+		repo.AssertExpectations(t)
+		tm.AssertExpectations(t)
+	})
 }

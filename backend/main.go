@@ -12,8 +12,9 @@ import (
 	"github.com/7oh2020/connect-tasklist/backend/infrastructure/persistence/model/db"
 	"github.com/7oh2020/connect-tasklist/backend/interfaces/di"
 	"github.com/7oh2020/connect-tasklist/backend/interfaces/interceptor"
-	"github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/task/v1/taskv1connect"
-	"github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/user/v1/userv1connect"
+	"github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/auth/v1/auth_v1connect"
+	"github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/task/v1/task_v1connect"
+	"github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/user/v1/user_v1connect"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/cors"
 	"golang.org/x/net/http2"
@@ -58,25 +59,24 @@ func run() error {
 	qry := db.New(pool)
 
 	// JWTの有効期限
-	duration := 1 * time.Hour
+	timeout := 1 * time.Hour
 
 	// ハンドラを作成する
-	userServer, err := di.InitUser(issuer, keyPath, qry, duration)
+	authServer, err := di.InitAuth(issuer, keyPath, qry, timeout)
 	if err != nil {
 		return err
 	}
-	taskServer, err := di.InitTask(qry)
-	if err != nil {
-		return err
-	}
+	userServer := di.InitUser(qry)
+	taskServer := di.InitTask(qry)
 
 	// インターセプタを作成する
 	authInterceptor := connect.WithInterceptors(interceptor.NewAuthInterceptor(issuer, keyPath))
 
 	// サーバーの起動
 	mux := http.NewServeMux()
-	mux.Handle(userv1connect.NewUserServiceHandler(userServer))
-	mux.Handle(taskv1connect.NewTaskServiceHandler(taskServer, authInterceptor))
+	mux.Handle(auth_v1connect.NewAuthServiceHandler(authServer))
+	mux.Handle(user_v1connect.NewUserServiceHandler(userServer))
+	mux.Handle(task_v1connect.NewTaskServiceHandler(taskServer, authInterceptor))
 
 	return http.ListenAndServe(
 		"localhost:8080",

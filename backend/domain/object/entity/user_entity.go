@@ -1,36 +1,29 @@
 package entity
 
 import (
-	"errors"
 	"time"
+
+	"github.com/7oh2020/connect-tasklist/backend/domain/object/value"
 )
 
 type User struct {
-	ID        string
-	Email     string
-	Password  string
+	ID        *value.ID
+	Email     *value.Email
+	Password  *value.Password
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
-func NewUser(id string, email string, password string, now time.Time) (*User, error) {
-	user := &User{
-		ID:        id,
-		Email:     email,
-		Password:  password,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-	if err := user.Validate(); err != nil {
-		return nil, err
-	}
-	return user, nil
-}
-
-// 自身のフィールドをバリデーションする
+// フィールドの妥当性を検証する
 func (u *User) Validate() error {
-	if u.ID == "" || u.Email == "" || u.Password == "" {
-		return errors.New("error: validation failed")
+	if err := u.ID.Validate(); err != nil {
+		return err
+	}
+	if err := u.Email.Validate(); err != nil {
+		return err
+	}
+	if err := u.Password.Validate(); err != nil {
+		return err
 	}
 	return nil
 }

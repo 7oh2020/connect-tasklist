@@ -41,8 +41,16 @@ func newTestServer(t *testing.T, hdr http.Handler) *testServer {
 	return &testServer{ts}
 }
 
-func (ts *testServer) sendPostRequest(t *testing.T, urlPath string, input string) (*testResponse, error) {
-	resp, err := ts.Client().Post(ts.URL+urlPath, "application/json", bytes.NewBuffer([]byte(input)))
+func (ts *testServer) sendPostRequest(t *testing.T, token string, urlPath string, input string) (*testResponse, error) {
+	req, err := http.NewRequest(http.MethodPost, ts.URL+urlPath, bytes.NewBuffer([]byte(input)))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := ts.Client().Do(req)
 	if err != nil {
 		return nil, err
 	}

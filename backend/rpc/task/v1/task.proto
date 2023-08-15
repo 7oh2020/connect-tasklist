@@ -5,7 +5,7 @@ package rpc.task.v1;
 // 日付型を外部のprotoファイルからimportする
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/task/v1;taskv1";
+option go_package = "github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/task/v1;task_v1";
 
 service TaskService {
   rpc GetTaskList(GetTaskListRequest) returns (GetTaskListResponse) {}
@@ -58,7 +58,7 @@ message UncompleteTaskResponse {
 }
 
 message ChangeTaskNameRequest {
-  string id = 1;
+  string task_id = 1;
   string name = 2;
 }
 

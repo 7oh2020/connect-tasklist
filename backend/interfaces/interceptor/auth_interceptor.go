@@ -29,7 +29,7 @@ func NewAuthInterceptor(issuer string, keyPath string) connect.UnaryInterceptorF
 			}
 			uid, err := tm.GetUserID(token)
 			if err != nil {
-				return nil, connect.NewError(connect.CodeAborted, err)
+				return nil, connect.NewError(connect.CodeUnauthenticated, err)
 			}
 
 			// コンテキストにUserIDをセットする

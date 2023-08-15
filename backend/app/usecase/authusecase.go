@@ -2,53 +2,47 @@ package usecase
 
 import (
 	"context"
-	"errors"
-	"regexp"
 	"time"
 
-	"github.com/7oh2020/connect-tasklist/backend/domain/object/entity"
+	"github.com/7oh2020/connect-tasklist/backend/app"
+	"github.com/7oh2020/connect-tasklist/backend/domain"
 	"github.com/7oh2020/connect-tasklist/backend/domain/repository"
+	"github.com/7oh2020/connect-tasklist/backend/interfaces/dto"
 	"github.com/7oh2020/connect-tasklist/backend/util/auth"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // ユーザーの認証処理
 type IAuthUsecase interface {
-	Login(ctx context.Context, email string, password string) (string, *entity.User, error)
+	Login(ctx context.Context, arg *dto.LoginParams) (*dto.UserInfo, error)
 }
 
 type AuthUsecase struct {
 	repository.IUserRepository
 	auth.ITokenManager
-	duration time.Duration
+	timeout time.Duration
 }
 
-func NewAuthUsecase(repo repository.IUserRepository, tm auth.ITokenManager, duration time.Duration) *AuthUsecase {
-	return &AuthUsecase{repo, tm, duration}
+func NewAuthUsecase(repo repository.IUserRepository, tm auth.ITokenManager, timeout time.Duration) *AuthUsecase {
+	return &AuthUsecase{repo, tm, timeout}
 }
 
-func (u *AuthUsecase) Login(ctx context.Context, email string, password string) (string, *entity.User, error) {
-	// 入力をバリデーションする
-	if email == "" || len([]rune(email)) > 100 || password == "" || len([]rune(password)) > 100 {
-		return "", nil, errors.New("error: invalid parameter")
+func (u *AuthUsecase) Login(ctx context.Context, arg *dto.LoginParams) (*dto.UserInfo, error) {
+	if err := arg.Validate(); err != nil {
+		return nil, err
 	}
-	// emailのフォーマットをバリデーションする
-	emailRegexp := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-	if ok := emailRegexp.MatchString(email); !ok {
-		return "", nil, errors.New("error: invalid email")
-	}
-	res, err := u.IUserRepository.FindUserByEmail(ctx, email)
+	user, err := u.IUserRepository.FindUserByEmail(ctx, arg.Email())
 	if err != nil {
-		return "", nil, err
+		return nil, &domain.ErrNotFound{Msg: "user not found"}
 	}
 	// bcrypt方式でパスワードが一致するか検証する
-	if err := bcrypt.CompareHashAndPassword([]byte(res.Password), []byte(password)); err != nil {
-		return "", nil, errors.New("error: password does not match")
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password.Value()), []byte(arg.Password())); err != nil {
+		return nil, &app.ErrLoginFailed{Msg: "password does not match"}
 	}
 	// JWTを作成する
-	token, err := u.ITokenManager.CreateToken(res.ID, u.duration)
+	token, err := u.ITokenManager.CreateToken(user.ID.Value(), u.timeout)
 	if err != nil {
-		return "", nil, err
+		return nil, &app.ErrInternal{Msg: "failed to create token"}
 	}
-	return token, res, nil
+	return dto.NewUserInfo(user.ID.Value(), user.Email.Value(), token), nil
 }

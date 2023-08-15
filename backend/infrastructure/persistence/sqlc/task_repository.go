@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/7oh2020/connect-tasklist/backend/domain/object/entity"
+	"github.com/7oh2020/connect-tasklist/backend/domain/object/value"
 	"github.com/7oh2020/connect-tasklist/backend/infrastructure/persistence/model/db"
 )
 
@@ -22,8 +23,8 @@ func (r *SQLCTaskRepository) FindTaskByID(ctx context.Context, id string) (*enti
 		return nil, err
 	}
 	return &entity.Task{
-		ID:          res.ID,
-		UserID:      res.UserID,
+		ID:          value.NewID(res.ID),
+		UserID:      value.NewID(res.UserID),
 		Name:        res.Name,
 		IsCompleted: res.IsCompleted,
 		CreatedAt:   res.CreatedAt,
@@ -39,8 +40,8 @@ func (r *SQLCTaskRepository) FindTasksByUserID(ctx context.Context, userID strin
 	tasks := make([]*entity.Task, len(res))
 	for i, v := range res {
 		tasks[i] = &entity.Task{
-			ID:          v.ID,
-			UserID:      v.UserID,
+			ID:          value.NewID(v.ID),
+			UserID:      value.NewID(v.UserID),
 			Name:        v.Name,
 			IsCompleted: v.IsCompleted,
 			CreatedAt:   v.CreatedAt,
@@ -52,8 +53,8 @@ func (r *SQLCTaskRepository) FindTasksByUserID(ctx context.Context, userID strin
 
 func (r *SQLCTaskRepository) CreateTask(ctx context.Context, arg *entity.Task) (string, error) {
 	return r.Querier.CreateTask(ctx, db.CreateTaskParams{
-		ID:          arg.ID,
-		UserID:      arg.UserID,
+		ID:          arg.ID.Value(),
+		UserID:      arg.UserID.Value(),
 		Name:        arg.Name,
 		IsCompleted: arg.IsCompleted,
 		CreatedAt:   arg.CreatedAt,
@@ -63,7 +64,7 @@ func (r *SQLCTaskRepository) CreateTask(ctx context.Context, arg *entity.Task) (
 
 func (r *SQLCTaskRepository) UpdateTask(ctx context.Context, arg *entity.Task) error {
 	return r.Querier.UpdateTask(ctx, db.UpdateTaskParams{
-		ID:          arg.ID,
+		ID:          arg.ID.Value(),
 		Name:        arg.Name,
 		IsCompleted: arg.IsCompleted,
 		UpdatedAt:   arg.UpdatedAt,

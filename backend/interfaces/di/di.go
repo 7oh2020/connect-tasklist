@@ -14,26 +14,29 @@ import (
 	"github.com/7oh2020/connect-tasklist/backend/util/identification"
 )
 
-func InitUser(issuer string, keyPath string, qry db.Querier, duration time.Duration) (*handler.UserHandler, error) {
+func InitUser(qry db.Querier) *handler.UserHandler {
+	repo := sqlc.NewSQLCUserRepository(qry)
+	srv := service.NewUserService(repo)
+	uc := usecase.NewUserUsecase(srv)
+	return handler.NewUserHandler(uc)
+}
+
+func InitTask(qry db.Querier) *handler.TaskHandler {
+	im := identification.NewUUIDManager()
+	cm := clock.NewClockManager()
+	cr := contextkey.NewContextReader()
+	repo := sqlc.NewSQLCTaskRepository(qry)
+	srv := service.NewTaskService(repo, im, cm)
+	uc := usecase.NewTaskUsecase(srv)
+	return handler.NewTaskHandler(uc, cr)
+}
+
+func InitAuth(issuer string, keyPath string, qry db.Querier, timeout time.Duration) (*handler.AuthHandler, error) {
 	tm, err := auth.NewTokenManager(issuer, keyPath)
 	if err != nil {
 		return nil, err
 	}
-	rpu := sqlc.NewSQLCUserRepository(qry)
-	svu := service.NewUserService(rpu)
-	uca := usecase.NewAuthUsecase(rpu, tm, duration)
-	ucu := usecase.NewUserUsecase(svu)
-	hdr := handler.NewUserHandler(uca, ucu)
-	return hdr, nil
-}
-
-func InitTask(qry db.Querier) (*handler.TaskHandler, error) {
-	im := identification.NewUUIDManager()
-	cm := clock.NewClockManager()
-	cr := contextkey.NewContextReader()
-	rpt := sqlc.NewSQLCTaskRepository(qry)
-	svt := service.NewTaskService(rpt)
-	uct := usecase.NewTaskUsecase(svt)
-	hdr := handler.NewTaskHandler(im, cm, cr, uct)
-	return hdr, nil
+	repo := sqlc.NewSQLCUserRepository(qry)
+	uc := usecase.NewAuthUsecase(repo, tm, timeout)
+	return handler.NewAuthHandler(uc), nil
 }

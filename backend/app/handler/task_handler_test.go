@@ -2,257 +2,310 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/7oh2020/connect-tasklist/backend/app"
+	"github.com/7oh2020/connect-tasklist/backend/domain"
 	"github.com/7oh2020/connect-tasklist/backend/domain/object/entity"
-	taskv1 "github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/task/v1"
-	"github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/task/v1/taskv1connect"
+	"github.com/7oh2020/connect-tasklist/backend/domain/object/value"
+	"github.com/7oh2020/connect-tasklist/backend/interfaces/dto"
+	task_v1 "github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/task/v1"
+	"github.com/7oh2020/connect-tasklist/backend/interfaces/rpc/task/v1/task_v1connect"
 	"github.com/7oh2020/connect-tasklist/backend/test/mocks"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestTaskHandler_NewTaskHandler(tt *testing.T) {
 	tt.Run("異常系: structがinterfaceを実装しているか", func(t *testing.T) {
-		var _ taskv1connect.TaskServiceHandler = (*TaskHandler)(nil)
+		var _ task_v1connect.TaskServiceHandler = (*TaskHandler)(nil)
 	})
 }
 
 func TestTaskHandler_GetTaskList(tt *testing.T) {
+	ctx := context.Background()
 	now := time.Now().UTC()
 	uid := "uid"
-	ctx := context.Background()
-	ent := []*entity.Task{
-		{ID: "id1", UserID: uid, Name: "task1", IsCompleted: false, CreatedAt: now, UpdatedAt: now},
-		{ID: "id2", UserID: uid, Name: "task2", IsCompleted: false, CreatedAt: now, UpdatedAt: now},
+	tasks := []*entity.Task{
+		{ID: value.NewID("t1"), UserID: value.NewID(uid), Name: "task1", IsCompleted: false, CreatedAt: now, UpdatedAt: now},
+		{ID: value.NewID("t2"), UserID: value.NewID(uid), Name: "task2", IsCompleted: false, CreatedAt: now, UpdatedAt: now},
 	}
-	tasks := []*taskv1.Task{
-		{Id: ent[0].ID, UserId: ent[0].UserID, Name: ent[0].Name, IsCompleted: ent[0].IsCompleted, CreatedAt: timestamppb.New(ent[0].CreatedAt), UpdatedAt: timestamppb.New(ent[0].UpdatedAt)},
-		{Id: ent[1].ID, UserId: ent[1].UserID, Name: ent[1].Name, IsCompleted: ent[1].IsCompleted, CreatedAt: timestamppb.New(ent[1].CreatedAt), UpdatedAt: timestamppb.New(ent[1].UpdatedAt)},
-	}
-
-	im := new(mocks.IIDManager)
-	cm := new(mocks.IClockManager)
-	cr := new(mocks.IContextReader)
-	cr.On("GetUserID", ctx).Return(uid, nil)
-
-	uct := new(mocks.ITaskUsecase)
-	uct.On("GetTaskList", ctx, uid).Return(ent, nil)
+	arg := &task_v1.GetTaskListRequest{}
+	param := dto.NewIDParam(uid)
+	req := connect.NewRequest(arg)
 
 	testcases := []struct {
-		title string
-		ctx   context.Context
-		arg   *connect.Request[taskv1.GetTaskListRequest]
-		res   *connect.Response[taskv1.GetTaskListResponse]
-		err   error
+		title   string
+		err     error
+		codeStr string
 	}{
-		{title: "正常系: 正しい入力の場合", ctx: ctx, arg: connect.NewRequest(&taskv1.GetTaskListRequest{}), res: connect.NewResponse(&taskv1.GetTaskListResponse{Tasks: tasks}), err: nil},
+		{"正常系: 正しい入力の場合", nil, ""},
+		{"準正常系: アプリ側バリデーションエラーの場合", &app.ErrInputValidationFailed{}, "invalid_argument"},
+		{"準正常系: ドメイン側バリデーションエラーの場合", &domain.ErrValidationFailed{}, "invalid_argument"},
+		{"準正常系: クエリエラーの場合", &domain.ErrQueryFailed{}, "aborted"},
+		{"準正常系: その他のエラーの場合", &app.ErrInternal{}, "unknown"},
 	}
-	for _, tc := range testcases {
-		tt.Run(tc.title, func(t *testing.T) {
-			hdr := NewTaskHandler(im, cm, cr, uct)
-			res, err := hdr.GetTaskList(tc.ctx, tc.arg)
-			require.Equal(t, tc.err, err)
-
-			if err == nil {
-				im.AssertExpectations(t)
-				cr.AssertExpectations(t)
-				uct.AssertExpectations(t)
-				require.Equal(t, tc.res, res)
+	for _, v := range testcases {
+		tt.Run(v.title, func(t *testing.T) {
+			uc := new(mocks.ITaskUsecase)
+			if v.err == nil {
+				uc.On("FindTasksByUserID", ctx, param).Return(tasks, nil)
+			} else {
+				uc.On("FindTasksByUserID", ctx, param).Return(nil, v.err)
 			}
+			cr := new(mocks.IContextReader)
+			cr.On("GetUserID", ctx).Return(uid, nil)
+			hdr := NewTaskHandler(uc, cr)
+			ret, err := hdr.GetTaskList(ctx, req)
+
+			if v.err == nil {
+				require.NoError(t, err, "エラーが発生しないこと")
+				for i, v := range ret.Msg.Tasks {
+					require.Equal(t, tasks[i].ID.Value(), v.Id)
+					require.Equal(t, tasks[i].UserID.Value(), v.UserId)
+					require.Equal(t, tasks[i].Name, v.Name)
+					require.Equal(t, tasks[i].IsCompleted, v.IsCompleted)
+				}
+			} else {
+				errMsg := fmt.Sprintf("%s: %s", v.codeStr, v.err.Error())
+				require.EqualError(t, err, errMsg, "エラーが一致すること")
+			}
+			uc.AssertExpectations(t)
+			cr.AssertExpectations(t)
 		})
 	}
 }
 
 func TestTaskHandler_CreateTask(tt *testing.T) {
+	ctx := context.Background()
 	id := "id"
 	uid := "uid"
-	name := "task"
-	now := time.Now().UTC()
-	ctx := context.Background()
-
-	im := new(mocks.IIDManager)
-	im.On("GenerateID").Return(id)
-	cm := new(mocks.IClockManager)
-	cm.On("GetNow").Return(now)
-	cr := new(mocks.IContextReader)
-	cr.On("GetUserID", ctx).Return(uid, nil)
-
-	uct := new(mocks.ITaskUsecase)
-	uct.On("CreateTask", ctx, id, uid, name, now).Return(id, nil)
+	arg := &task_v1.CreateTaskRequest{Name: "task"}
+	param := dto.NewCreateTaskParams(uid, arg.Name)
+	req := connect.NewRequest(arg)
 
 	testcases := []struct {
-		title string
-		ctx   context.Context
-		arg   *connect.Request[taskv1.CreateTaskRequest]
-		err   error
+		title   string
+		err     error
+		codeStr string
 	}{
-		{title: "正常系: 正しい入力の場合", ctx: ctx, arg: connect.NewRequest(&taskv1.CreateTaskRequest{Name: name}), err: nil},
+		{"正常系: 正しい入力の場合", nil, ""},
+		{"準正常系: アプリ側バリデーションエラーの場合", &app.ErrInputValidationFailed{}, "invalid_argument"},
+		{"準正常系: ドメイン側バリデーションエラーの場合", &domain.ErrValidationFailed{}, "invalid_argument"},
+		{"準正常系: クエリエラーの場合", &domain.ErrQueryFailed{}, "aborted"},
+		{"準正常系: その他のエラーの場合", &app.ErrInternal{}, "unknown"},
 	}
-	for _, tc := range testcases {
-		tt.Run(tc.title, func(t *testing.T) {
-			hdr := NewTaskHandler(im, cm, cr, uct)
-			_, err := hdr.CreateTask(tc.ctx, tc.arg)
-			require.Equal(t, tc.err, err)
-
-			if err == nil {
-				im.AssertExpectations(t)
-				cr.AssertExpectations(t)
-				uct.AssertExpectations(t)
+	for _, v := range testcases {
+		tt.Run(v.title, func(t *testing.T) {
+			uc := new(mocks.ITaskUsecase)
+			if v.err == nil {
+				uc.On("CreateTask", ctx, param).Return(id, nil)
+			} else {
+				uc.On("CreateTask", ctx, param).Return("", v.err)
 			}
+			cr := new(mocks.IContextReader)
+			cr.On("GetUserID", ctx).Return(uid, nil)
+			hdr := NewTaskHandler(uc, cr)
+			ret, err := hdr.CreateTask(ctx, req)
+
+			if v.err == nil {
+				require.NoError(t, err, "エラーが発生しないこと")
+				require.Equal(t, id, ret.Msg.CreatedId)
+			} else {
+				errMsg := fmt.Sprintf("%s: %s", v.codeStr, v.err.Error())
+				require.EqualError(t, err, errMsg, "エラーが一致すること")
+			}
+			uc.AssertExpectations(t)
+			cr.AssertExpectations(t)
 		})
 	}
 }
 
 func TestTaskHandler_ChangeTaskName(tt *testing.T) {
+	ctx := context.Background()
 	id := "id"
 	uid := "uid"
-	name := "task"
-	now := time.Now().UTC()
-	ctx := context.Background()
-
-	im := new(mocks.IIDManager)
-	cm := new(mocks.IClockManager)
-	cm.On("GetNow").Return(now)
-	cr := new(mocks.IContextReader)
-	cr.On("GetUserID", ctx).Return(uid, nil)
-
-	uct := new(mocks.ITaskUsecase)
-	uct.On("ChangeTaskName", ctx, id, uid, name, now).Return(nil)
+	arg := &task_v1.ChangeTaskNameRequest{TaskId: id, Name: "new task"}
+	param := dto.NewChangeTaskNameParams(arg.TaskId, uid, arg.Name)
+	req := connect.NewRequest(arg)
 
 	testcases := []struct {
-		title string
-		ctx   context.Context
-		arg   *connect.Request[taskv1.ChangeTaskNameRequest]
-		err   error
+		title   string
+		err     error
+		codeStr string
 	}{
-		{title: "正常系: 正しい入力の場合", ctx: ctx, arg: connect.NewRequest(&taskv1.ChangeTaskNameRequest{Id: id, Name: name}), err: nil},
+		{"正常系: 正しい入力の場合", nil, ""},
+		{"準正常系: アプリ側バリデーションエラーの場合", &app.ErrInputValidationFailed{}, "invalid_argument"},
+		{"準正常系: ドメイン側バリデーションエラーの場合", &domain.ErrValidationFailed{}, "invalid_argument"},
+		{"準正常系: タスクが存在しない場合", &domain.ErrNotFound{}, "not_found"},
+		{"準正常系: アクセス権がない場合", &domain.ErrPermissionDenied{}, "permission_denied"},
+		{"準正常系: クエリエラーの場合", &domain.ErrQueryFailed{}, "aborted"},
+		{"準正常系: その他のエラーの場合", &app.ErrInternal{}, "unknown"},
 	}
-	for _, tc := range testcases {
-		tt.Run(tc.title, func(t *testing.T) {
-			hdr := NewTaskHandler(im, cm, cr, uct)
-			_, err := hdr.ChangeTaskName(tc.ctx, tc.arg)
-			require.Equal(t, tc.err, err)
-
-			if err == nil {
-				im.AssertExpectations(t)
-				cr.AssertExpectations(t)
-				uct.AssertExpectations(t)
+	for _, v := range testcases {
+		tt.Run(v.title, func(t *testing.T) {
+			uc := new(mocks.ITaskUsecase)
+			if v.err == nil {
+				uc.On("ChangeTaskName", ctx, param).Return(nil)
+			} else {
+				uc.On("ChangeTaskName", ctx, param).Return(v.err)
 			}
-		})
-	}
-}
+			cr := new(mocks.IContextReader)
+			cr.On("GetUserID", ctx).Return(uid, nil)
+			hdr := NewTaskHandler(uc, cr)
+			_, err := hdr.ChangeTaskName(ctx, req)
 
-func TestTaskHandler_CompleteTask(tt *testing.T) {
-	id := "id"
-	uid := "uid"
-	now := time.Now().UTC()
-	ctx := context.Background()
-
-	im := new(mocks.IIDManager)
-	cm := new(mocks.IClockManager)
-	cm.On("GetNow").Return(now)
-	cr := new(mocks.IContextReader)
-	cr.On("GetUserID", ctx).Return(uid, nil)
-
-	uct := new(mocks.ITaskUsecase)
-	uct.On("CompleteTask", ctx, id, uid, now).Return(nil)
-
-	testcases := []struct {
-		title string
-		ctx   context.Context
-		arg   *connect.Request[taskv1.CompleteTaskRequest]
-		err   error
-	}{
-		{title: "正常系: 正しい入力の場合", ctx: ctx, arg: connect.NewRequest(&taskv1.CompleteTaskRequest{TaskId: id}), err: nil},
-	}
-	for _, tc := range testcases {
-		tt.Run(tc.title, func(t *testing.T) {
-			hdr := NewTaskHandler(im, cm, cr, uct)
-			_, err := hdr.CompleteTask(tc.ctx, tc.arg)
-			require.Equal(t, tc.err, err)
-
-			if err == nil {
-				im.AssertExpectations(t)
-				cr.AssertExpectations(t)
-				uct.AssertExpectations(t)
+			if v.err == nil {
+				require.NoError(t, err, "エラーが発生しないこと")
+			} else {
+				errMsg := fmt.Sprintf("%s: %s", v.codeStr, v.err.Error())
+				require.EqualError(t, err, errMsg, "エラーが一致すること")
 			}
-		})
-	}
-}
-
-func TestTaskHandler_UncompleteTask(tt *testing.T) {
-	id := "id"
-	uid := "uid"
-	now := time.Now().UTC()
-	ctx := context.Background()
-
-	im := new(mocks.IIDManager)
-	cm := new(mocks.IClockManager)
-	cm.On("GetNow").Return(now)
-	cr := new(mocks.IContextReader)
-	cr.On("GetUserID", ctx).Return(uid, nil)
-
-	uct := new(mocks.ITaskUsecase)
-	uct.On("UncompleteTask", ctx, id, uid, now).Return(nil)
-
-	testcases := []struct {
-		title string
-		ctx   context.Context
-		arg   *connect.Request[taskv1.UncompleteTaskRequest]
-		err   error
-	}{
-		{title: "正常系: 正しい入力の場合", ctx: ctx, arg: connect.NewRequest(&taskv1.UncompleteTaskRequest{TaskId: id}), err: nil},
-	}
-	for _, tc := range testcases {
-		tt.Run(tc.title, func(t *testing.T) {
-			hdr := NewTaskHandler(im, cm, cr, uct)
-			_, err := hdr.UncompleteTask(tc.ctx, tc.arg)
-			require.Equal(t, tc.err, err)
-
-			if err == nil {
-				im.AssertExpectations(t)
-				cr.AssertExpectations(t)
-				uct.AssertExpectations(t)
-			}
+			uc.AssertExpectations(t)
+			cr.AssertExpectations(t)
 		})
 	}
 }
 
 func TestTaskHandler_DeleteTask(tt *testing.T) {
+	ctx := context.Background()
 	id := "id"
 	uid := "uid"
-	ctx := context.Background()
-
-	im := new(mocks.IIDManager)
-
-	cr := new(mocks.IContextReader)
-	cr.On("GetUserID", ctx).Return(uid, nil)
-	cm := new(mocks.IClockManager)
-	uct := new(mocks.ITaskUsecase)
-	uct.On("DeleteTask", ctx, id, uid).Return(nil)
+	arg := &task_v1.DeleteTaskRequest{TaskId: id}
+	paramID := dto.NewIDParam(arg.TaskId)
+	paramUserID := dto.NewIDParam(uid)
+	req := connect.NewRequest(arg)
 
 	testcases := []struct {
-		title string
-		ctx   context.Context
-		arg   *connect.Request[taskv1.DeleteTaskRequest]
-		err   error
+		title   string
+		err     error
+		codeStr string
 	}{
-		{title: "正常系: 正しい入力の場合", ctx: ctx, arg: connect.NewRequest(&taskv1.DeleteTaskRequest{TaskId: id}), err: nil},
+		{"正常系: 正しい入力の場合", nil, ""},
+		{"準正常系: アプリ側バリデーションエラーの場合", &app.ErrInputValidationFailed{}, "invalid_argument"},
+		{"準正常系: ドメイン側バリデーションエラーの場合", &domain.ErrValidationFailed{}, "invalid_argument"},
+		{"準正常系: タスクが存在しない場合", &domain.ErrNotFound{}, "not_found"},
+		{"準正常系: アクセス権がない場合", &domain.ErrPermissionDenied{}, "permission_denied"},
+		{"準正常系: クエリエラーの場合", &domain.ErrQueryFailed{}, "aborted"},
+		{"準正常系: その他のエラーの場合", &app.ErrInternal{}, "unknown"},
 	}
-	for _, tc := range testcases {
-		tt.Run(tc.title, func(t *testing.T) {
-			hdr := NewTaskHandler(im, cm, cr, uct)
-			_, err := hdr.DeleteTask(tc.ctx, tc.arg)
-			require.Equal(t, tc.err, err)
-
-			if err == nil {
-				im.AssertExpectations(t)
-				cr.AssertExpectations(t)
-				uct.AssertExpectations(t)
+	for _, v := range testcases {
+		tt.Run(v.title, func(t *testing.T) {
+			uc := new(mocks.ITaskUsecase)
+			if v.err == nil {
+				uc.On("DeleteTask", ctx, paramID, paramUserID).Return(nil)
+			} else {
+				uc.On("DeleteTask", ctx, paramID, paramUserID).Return(v.err)
 			}
+			cr := new(mocks.IContextReader)
+			cr.On("GetUserID", ctx).Return(uid, nil)
+			hdr := NewTaskHandler(uc, cr)
+			_, err := hdr.DeleteTask(ctx, req)
+
+			if v.err == nil {
+				require.NoError(t, err, "エラーが発生しないこと")
+			} else {
+				errMsg := fmt.Sprintf("%s: %s", v.codeStr, v.err.Error())
+				require.EqualError(t, err, errMsg, "エラーが一致すること")
+			}
+			uc.AssertExpectations(t)
+			cr.AssertExpectations(t)
+		})
+	}
+}
+
+func TestTaskHandler_CompleteTask(tt *testing.T) {
+	ctx := context.Background()
+	id := "id"
+	uid := "uid"
+	arg := &task_v1.CompleteTaskRequest{TaskId: id}
+	paramID := dto.NewIDParam(arg.TaskId)
+	paramUserID := dto.NewIDParam(uid)
+	req := connect.NewRequest(arg)
+
+	testcases := []struct {
+		title   string
+		err     error
+		codeStr string
+	}{
+		{"正常系: 正しい入力の場合", nil, ""},
+		{"準正常系: アプリ側バリデーションエラーの場合", &app.ErrInputValidationFailed{}, "invalid_argument"},
+		{"準正常系: ドメイン側バリデーションエラーの場合", &domain.ErrValidationFailed{}, "invalid_argument"},
+		{"準正常系: タスクが存在しない場合", &domain.ErrNotFound{}, "not_found"},
+		{"準正常系: アクセス権がない場合", &domain.ErrPermissionDenied{}, "permission_denied"},
+		{"準正常系: クエリエラーの場合", &domain.ErrQueryFailed{}, "aborted"},
+		{"準正常系: その他のエラーの場合", &app.ErrInternal{}, "unknown"},
+	}
+	for _, v := range testcases {
+		tt.Run(v.title, func(t *testing.T) {
+			uc := new(mocks.ITaskUsecase)
+			if v.err == nil {
+				uc.On("CompleteTask", ctx, paramID, paramUserID).Return(nil)
+			} else {
+				uc.On("CompleteTask", ctx, paramID, paramUserID).Return(v.err)
+			}
+			cr := new(mocks.IContextReader)
+			cr.On("GetUserID", ctx).Return(uid, nil)
+			hdr := NewTaskHandler(uc, cr)
+			_, err := hdr.CompleteTask(ctx, req)
+
+			if v.err == nil {
+				require.NoError(t, err, "エラーが発生しないこと")
+			} else {
+				errMsg := fmt.Sprintf("%s: %s", v.codeStr, v.err.Error())
+				require.EqualError(t, err, errMsg, "エラーが一致すること")
+			}
+			uc.AssertExpectations(t)
+			cr.AssertExpectations(t)
+		})
+	}
+}
+
+func TestTaskHandler_UncompleteTask(tt *testing.T) {
+	ctx := context.Background()
+	id := "id"
+	uid := "uid"
+	arg := &task_v1.UncompleteTaskRequest{TaskId: id}
+	paramID := dto.NewIDParam(arg.TaskId)
+	paramUserID := dto.NewIDParam(uid)
+	req := connect.NewRequest(arg)
+
+	testcases := []struct {
+		title   string
+		err     error
+		codeStr string
+	}{
+		{"正常系: 正しい入力の場合", nil, ""},
+		{"準正常系: アプリ側バリデーションエラーの場合", &app.ErrInputValidationFailed{}, "invalid_argument"},
+		{"準正常系: ドメイン側バリデーションエラーの場合", &domain.ErrValidationFailed{}, "invalid_argument"},
+		{"準正常系: タスクが存在しない場合", &domain.ErrNotFound{}, "not_found"},
+		{"準正常系: アクセス権がない場合", &domain.ErrPermissionDenied{}, "permission_denied"},
+		{"準正常系: クエリエラーの場合", &domain.ErrQueryFailed{}, "aborted"},
+		{"準正常系: その他のエラーの場合", &app.ErrInternal{}, "unknown"},
+	}
+	for _, v := range testcases {
+		tt.Run(v.title, func(t *testing.T) {
+			uc := new(mocks.ITaskUsecase)
+			if v.err == nil {
+				uc.On("UncompleteTask", ctx, paramID, paramUserID).Return(nil)
+			} else {
+				uc.On("UncompleteTask", ctx, paramID, paramUserID).Return(v.err)
+			}
+			cr := new(mocks.IContextReader)
+			cr.On("GetUserID", ctx).Return(uid, nil)
+			hdr := NewTaskHandler(uc, cr)
+			_, err := hdr.UncompleteTask(ctx, req)
+
+			if v.err == nil {
+				require.NoError(t, err, "エラーが発生しないこと")
+			} else {
+				errMsg := fmt.Sprintf("%s: %s", v.codeStr, v.err.Error())
+				require.EqualError(t, err, errMsg, "エラーが一致すること")
+			}
+			uc.AssertExpectations(t)
+			cr.AssertExpectations(t)
 		})
 	}
 }

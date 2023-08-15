@@ -1,45 +1,33 @@
 package entity
 
 import (
-	"errors"
 	"testing"
-	"time"
 
+	"github.com/7oh2020/connect-tasklist/backend/domain"
+	"github.com/7oh2020/connect-tasklist/backend/domain/object/value"
 	"github.com/stretchr/testify/require"
 )
 
-func TestTaskEntity_NewTaskEntity(tt *testing.T) {
-	now := time.Now().UTC()
-	id := "id"
-	uid := "uid"
-	name := "task"
-	task := &Task{
-		ID:          id,
-		UserID:      uid,
-		Name:        name,
-		IsCompleted: false,
-		CreatedAt:   now,
-		UpdatedAt:   now,
-	}
-
+func TestTaskEntity_Validate(tt *testing.T) {
 	testcases := []struct {
-		title  string
-		id     string
-		userID string
-		name   string
-		res    *Task
-		err    error
+		title string
+		arg   *Task
+		err   error
 	}{
-		{title: "正常系: 正しい入力の場合", id: id, userID: uid, name: name, res: task, err: nil},
-		{title: "準正常系: idが空の場合", id: "", userID: uid, name: name, res: nil, err: errors.New("error: validation failed")},
-		{title: "準正常系: userIDが空の場合", id: id, userID: "", name: name, res: nil, err: errors.New("error: validation failed")},
-		{title: "準正常系: nameが空の場合", id: id, userID: uid, name: "", res: nil, err: errors.New("error: validation failed")},
+		{"正常系: 正しい入力の場合", &Task{ID: value.NewID("id"), UserID: value.NewID("uid"), Name: "task"}, nil},
+		{"準正常系: IDが空の場合", &Task{ID: value.NewID(""), UserID: value.NewID("uid"), Name: "task"}, &domain.ErrValidationFailed{Msg: "id is empty"}},
+		{"準正常系: UserIDが空の場合", &Task{ID: value.NewID("id"), UserID: value.NewID(""), Name: "task"}, &domain.ErrValidationFailed{Msg: "id is empty"}},
+		{"準正常系: nameが空の場合", &Task{ID: value.NewID("id"), UserID: value.NewID("uid"), Name: ""}, &domain.ErrValidationFailed{Msg: "name is empty"}},
 	}
-	for _, tc := range testcases {
-		tt.Run(tc.title, func(t *testing.T) {
-			res, err := NewTask(tc.id, tc.userID, tc.name, now)
-			require.Equal(t, tc.err, err)
-			require.Equal(t, tc.res, res)
+	for _, v := range testcases {
+		tt.Run(v.title, func(t *testing.T) {
+			err := v.arg.Validate()
+
+			if v.err == nil {
+				require.NoError(t, err, "エラーが発生しないこと")
+			} else {
+				require.EqualError(t, err, v.err.Error(), "エラーが一致すること")
+			}
 		})
 	}
 }

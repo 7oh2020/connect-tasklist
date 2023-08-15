@@ -1,38 +1,31 @@
 package entity
 
 import (
-	"errors"
 	"time"
+
+	"github.com/7oh2020/connect-tasklist/backend/domain"
+	"github.com/7oh2020/connect-tasklist/backend/domain/object/value"
 )
 
 type Task struct {
-	ID          string
-	UserID      string
+	ID          *value.ID
+	UserID      *value.ID
 	Name        string
 	IsCompleted bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
 
-func NewTask(id string, userID string, name string, now time.Time) (*Task, error) {
-	task := &Task{
-		ID:          id,
-		UserID:      userID,
-		Name:        name,
-		IsCompleted: false,
-		CreatedAt:   now,
-		UpdatedAt:   now,
-	}
-	if err := task.Validate(); err != nil {
-		return nil, err
-	}
-	return task, nil
-}
-
-// 自身のフィールドをバリデーションする
+// フィールドの妥当性を検証する
 func (t *Task) Validate() error {
-	if t.ID == "" || t.UserID == "" || t.Name == "" {
-		return errors.New("error: validation failed")
+	if err := t.ID.Validate(); err != nil {
+		return err
+	}
+	if err := t.UserID.Validate(); err != nil {
+		return err
+	}
+	if t.Name == "" {
+		return &domain.ErrValidationFailed{Msg: "name is empty"}
 	}
 	return nil
 }
