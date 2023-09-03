@@ -3,6 +3,6 @@ CREATE TABLE tasks(
   user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name VARCHAR(100) NOT NULL,
   is_completed BOOLEAN NOT NULL DEFAULT(false),
-  created_at TIMESTAMP NOT NULL,
-  updated_at TIMESTAMP NOT NULL
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
 );
