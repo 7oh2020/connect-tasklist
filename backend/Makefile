@@ -4,7 +4,7 @@ MIGRATION_DIR="file://data/schema"
 all: install run
 
 .Phony: install
-install: gen_key gen_orm gen_rpc gen_mock
+install: gen_key gen_rpc gen_orm gen_mock
 
 .Phony: gen_key
 gen_key:
@@ -36,7 +36,7 @@ gen_rpc:
 	@go mod tidy
 	@echo "done gen_rpc!!"
 
-.Phony: db_refresh
+.Phony: @db_refresh
 db_refresh:
 	@migrate -database=$(DATABASE_URL) -source=$(MIGRATION_DIR) drop -f
 	@migrate -database=$(DATABASE_URL) -source=$(MIGRATION_DIR) up
